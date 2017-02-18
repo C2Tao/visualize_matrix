@@ -19,6 +19,18 @@ def reorder_center(n):
     assert len(order)==n
     return np.array(order)
 
+def array_center(arr):
+    n = len(list(arr))
+    idx = np.array(reorder_center(n))
+    #print 'idx', idx
+    new_idx = np.zeros(n, dtype=np.int32)
+    new_idx[idx] = np.array(list(range(n)))
+    #print 'new_idx', new_idx
+    new_arr = np.array(arr)[new_idx]
+    #print 'new_arr', new_arr
+    return new_arr 
+
+
 def unique_everseen(iterable, key=None):
     "List unique elements, preserving order. Remember all elements ever seen."
     # unique_everseen('AAAABBBCCDAABBB') --> A B C D
@@ -49,14 +61,14 @@ class Vmatrix(object):
         if row is None:
             self.row = np.array(list(range(self.mat.shape[1])))
 
-    def mat_transpose(self):
+    def T(self):
         # transpose of the matrix
         return Vmatrix(self.mat.T, self.row, self.col)
 
     def mat_thresh(self, thresh = None):
         # remove rows where all values are smaller than thresh, then
         # remove cols where all values are smaller than thresh
-        return self.col_thresh(thresh).mat_transpose().col_thresh(thresh).mat_transpose()
+        return self.col_thresh(thresh).T().col_thresh(thresh).T()
     
     def mat_sparsify(self, thresh=None):
         # set all values of the matrix to be 1 if >= thresh, else 0
@@ -86,10 +98,10 @@ class Vmatrix(object):
 
     #def row_sort(self):
     #    # sort rows in ascending order according to col sum
-    #    return self.mat_transpose().col_sort().mat_transpose()
+    #    return self.T().col_sort().T()
 
     def col_cluster(self, thresh):
-        # 1. X = sparsifies matrix
+        # 1. X = sparsified matrix
         # 2. sorted_row = sorted row of sparsified matrix
         # 3. clustered_col = cluster columns together according to row priority
         # 4. new_row/col_order = reorder_center(sorted_row/clustered_col)
@@ -101,7 +113,7 @@ class Vmatrix(object):
         
         ### sort rows
         #print 'sort row'
-        V = S.mat_transpose().col_sort().mat_transpose()#.debug()
+        V = S.T().col_sort().T()#.debug()
         sorted_row = V.row
         
         ### cluster columns
@@ -111,12 +123,14 @@ class Vmatrix(object):
             for j, val in enumerate(V.mat[:, i]):
                 if val!=0: 
                     clustered_col.append(V.col[j])
+        clustered_col = np.array(list(unique_everseen(clustered_col)))
         #print clustered_col 
 
-        clustered_col = np.array(list(unique_everseen(clustered_col)))
+        new_col = array_center(clustered_col)
+        new_row = array_center(sorted_row)
         
-        #return self.mat_col_key(clustered_col).mat_transpose().mat_col_key(sorted_row).mat_transpose()
-        return V.mat_col_key(clustered_col)
+        #return self.mat_col_key(new_col).T().mat_col_key(new_row).T()
+        return S.mat_col_key(new_col).T().mat_col_key(new_row).T()
 
     def view(self):
         plt.matshow(self.mat)
@@ -139,7 +153,7 @@ def test_case():
     print '================================================================'
     print 'testing transpose'
     V = Vmatrix([[1,2],[1,3],[3,3],[4,1]], col=['a','b','c','d'], row=['x','y']).debug()
-    A = V.mat_transpose().debug()
+    A = V.T().debug()
     print '================================================================'
 
     print '================================================================'
@@ -159,7 +173,9 @@ if __name__=='__main__':
     #test_case()
     alphabets = list(string.ascii_lowercase)
     print alphabets
-    V = Vmatrix(np.random.rand(10,10), col=alphabets[:10]).debug().view()
+    print array_center(alphabets)
+    #V = Vmatrix(np.random.rand(10,10), col=alphabets[:10]).debug().view()
+    V = Vmatrix(np.random.rand(100,100)).debug().view()
     G = V.col_cluster(0.8).debug().view()
 
     

@@ -74,6 +74,9 @@ class Vmatrix(object):
     def mat_sparsify(self, thresh=None):
         # set all values of the matrix to be 1 if >= thresh, else 0
         # remove rows/cols if all 0
+        if thresh is None:
+            thresh = np.mean(self.mean_col().reshape(1,-1))
+            print 'set sparse threshold to ', thresh
         sparse_mat = np.where(self.mat>=thresh, 1, 0)
         return Vmatrix(sparse_mat, self.col, self.row)
      
@@ -116,8 +119,11 @@ class Vmatrix(object):
             for j, val in enumerate(self.mat[:, i]):
                 if val!=0: 
                     clustered_col.append(self.col[j])
-        clustered_col = np.array(list(unique_everseen(clustered_col)))
-        return self.mat_col_key(clustered_col)
+        clustered_col = list(unique_everseen(clustered_col))
+        for key in self.col:
+            if key not in clustered_col:
+                clustered_col.append(key)
+        return self.mat_col_key(np.array(clustered_col))
 
     def col_center(self):
         new_col = array_center(self.col)
@@ -246,6 +252,23 @@ def matrix_from_mlf(mlf_path):
     matrix = np.array(vector_list)
     return matrix, speaker_list, vocab_list
 
+def sort_speaker_list(speaker_list):
+    speaker_class = ['f1', 'f2', 'f3', 'f4', 'f5','f6', 'f7', 'f8', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8']
+    speaker_dict = {}
+    for sp in speaker_list:
+        gr = sp[4] + sp[2] 
+        print gr
+        if gr not in speaker_dict:
+            speaker_dict[gr] = [sp,]
+        else:   
+            speaker_dict[gr].append(sp)
+    nested_list = []
+    for cl in speaker_class:
+        print 'there are {} speakers in class {}'.format(len(speaker_dict[cl]), cl)
+        nested_list.append(speaker_dict[cl])
+    #return speaker_dict, speaker_class
+    return nested_list
+
 def matrix_accu_attr(mat, speaker_list, attr):
     if attr=='gender':
         idx = 4
@@ -260,99 +283,50 @@ def matrix_accu_attr(mat, speaker_list, attr):
         attr_speaker[j].append(sp)
         matrix[j, :] +=mat[i,:]
 
-    for i, a in enumerate(attr_list):
-        print a,len(attr_speaker[i])
+    #for i, a in enumerate(attr_list): print a,len(attr_speaker[i])
     return matrix, attr_list, attr_speaker
 
 flatten = lambda l: [item for sublist in l for item in sublist]
 
-def current_best():
-    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_5/result/result.mlf'
-    SV, spk_list, v_list = matrix_from_mlf(mlf_path)
-    gSV, gen_list = matrix_accu_attr(SV, spk_list, 'gender')
-    rSV, reg_list = matrix_accu_attr(SV, spk_list, 'region')
-    #plt.matshow(np.log(SV+1))
-    #plt.show()
-    
-    V = Vmatrix(SV, spk_list, v_list)#.view()
-    #V = Vmatrix(rSV, reg_list, v_list)#.view()
-
-    #X = V.mat_thresh(10)#.view()
-    sorted_rows = V.T().col_sort().T().row[20:50]
-    #sorted_cols = X.col_sort().col
-
-    #V = V.mat_col_key(sorted_cols).col_center()#.view()
-    V = V.T().mat_col_key(sorted_rows).col_center().T().view()
-
- 
-    #X = V.mat_sparsify(20)
-    #V.col_cluster(20).debug().view()
-
-
-def region():
-    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/50_3/result/result.mlf'
-    SV, spk_list, v_list = matrix_from_mlf(mlf_path)
-    gSV, gen_list, gspk_list = matrix_accu_attr(SV, spk_list, 'gender')
-    rSV, reg_list, rspk_list = matrix_accu_attr(SV, spk_list, 'region')
-    #plt.matshow(np.log(SV+1))
-    #plt.show()
-    
-    V = Vmatrix(SV, spk_list, v_list)#.view()
-
-    selected_cols = []    
-    for key_clust in rspk_list:
-        u_clust = V.mean_col(key_clust)
-        d_clust = V.mat_col_key(key_clust).mean_dist(u_clust)
-        u_total = V.mean_col()
-        d_total = V.mat_col_key(key_clust).mean_dist(u_total)
-        #print sorted(d_total/d_clust)
-        selectd_cols_clust = V.mat_col_key(key_clust).col_sort(d_total/d_clust).col[:10]
-        print selectd_cols_clust
-        selected_cols.append(selectd_cols_clust)
-    V = V.mat_col_key(flatten(selected_cols))
-
-    V = V.T().col_sort().T()
-    sorted_rows = V.row[11:]
-    V = V.T().mat_col_key(sorted_rows).col_center().T()
-
-
-    #V.debug().view()
-
-    row = V.mat_sparsify(20).T().col_aggr().col_center().T().row
-    V = V.T().mat_col_key(row).T().view()
-
 
 if __name__=='__main__':
-    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/100_5/result/result.mlf'
-    SV, spk_list, v_list = matrix_from_mlf(mlf_path)
-    gSV, gen_list, gspk_list = matrix_accu_attr(SV, spk_list, 'gender')
-    rSV, reg_list, rspk_list = matrix_accu_attr(SV, spk_list, 'region')
+    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_5/result/result.mlf'
+    
+    SV, speaker_list, vocab_list = matrix_from_mlf(mlf_path)
+    
+    #sort_speaker_list(speaker_list)
+
+
+    gSV, gen_list, gspeaker_list = matrix_accu_attr(SV, speaker_list, 'gender')
+    rSV, reg_list, rspeaker_list = matrix_accu_attr(SV, speaker_list, 'region')
     #plt.matshow(np.log(SV+1))
     #plt.show()
     '''
     V.debug().view()
+    Vmatrix(V.mat**0.5, V.col, V.row).debug().view()
     ''' 
-    V = Vmatrix(SV, spk_list, v_list)#.view()
+    V = Vmatrix(SV, speaker_list, vocab_list)#.view()
 
     selected_cols = []    
-    for key_clust in gspk_list:
+    for key_clust in rspeaker_list:
         u_clust = V.mean_col(key_clust)
         d_clust = V.mat_col_key(key_clust).mean_dist(u_clust)
-        u_total = V.mean_col()
+        u_total = V.mean_col(flatten(rspeaker_list))
         d_total = V.mat_col_key(key_clust).mean_dist(u_total)
-        #print sorted(d_total/d_clust)
-        selectd_cols_clust = V.mat_col_key(key_clust).col_sort(d_total/d_clust).col[:100]
-        print selectd_cols_clust
+        selectd_cols_clust = V.mat_col_key(key_clust).col_sort(d_total/d_clust).col[:60]
         selected_cols.append(selectd_cols_clust)
     V = V.mat_col_key(flatten(selected_cols))
-
+    
     V = V.T().col_sort().T()
-
-    clip_rows = V.row[10:90]
+    n_cut = len(V.row)/20
+    clip_rows = V.row[n_cut:-n_cut]
     V = V.T().mat_col_key(clip_rows).T()
 
-    sorted_row = V.mat_sparsify(1).T().col_aggr().T().row
+    sorted_row = V.mat_sparsify(2).T().col_aggr().T().row
     V = V.T().mat_col_key(sorted_row).T()
-    V = V.T().col_center().T()
+    #V = V.T().col_center().T()
 
-    V.debug().view()
+    V.mat_sparsify(10)#.view()
+    Vmatrix(V.mat**0.5, V.col, V.row).view()
+
+

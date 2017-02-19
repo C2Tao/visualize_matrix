@@ -75,39 +75,49 @@ class Vmatrix(object):
         # set all values of the matrix to be 1 if >= thresh, else 0
         # remove rows/cols if all 0
         sparse_mat = np.where(self.mat>=thresh, 1, 0)
-        return Vmatrix(sparse_mat, self.col, self.row).mat_thresh(1)
+        return Vmatrix(sparse_mat, self.col, self.row)
      
     def mat_col_idx(self, idx_col):
-        # make a submatrix by keep only the selected columns indices
+        # make a submatrix by keeping only the selected columns indices
         return Vmatrix(self.mat[idx_col,:], self.col[idx_col], self.row)
     
     def mat_col_key(self, key_col):
-        # make a submatrix by keep only the selected columns keys
+        # make a submatrix by keeping only the selected columns keys
         idx_col = [list(self.col).index(k) for k in key_col] 
         return Vmatrix(self.mat[idx_col,:], key_col, self.row)
 
-    def col_thresh(self, thresh = None):
+    def col_thresh(self, thresh=None):
         # remove rows where all values are smaller than thresh
         # this means keeping only a sublist of original cols
         keep_col = np.invert(np.all(self.mat < thresh, axis=1, keepdims=False)).nonzero()[0]
+
         return self.mat_col_idx(keep_col)
 
-    def col_sort(self):
+    def col_sort(self, key_list=None):
         # sort columns in descending order according to row sum
-        sorted_col = sorted(range(self.mat.shape[0]), key= lambda i: np.sum(self.mat[i,:]), reverse=True) 
+        if key_list is None:
+            key_list = np.sum(self.mat, axis=1, keepdims=False)
+        sorted_col = sorted(range(self.mat.shape[0]), key= lambda i: key_list[i], reverse=True) 
         return self.mat_col_idx(sorted_col)
 
-    #def row_sort(self):
-    #    # sort rows in ascending order according to col sum
-    #    return self.T().col_sort().T()
 
-    def col_aggr(self, sorted_row):
+    def mean_col(self, key_col=None):
+        if key_col is None:
+            key_col = self.col
+        return np.mean(self.mat_col_key(key_col).mat, axis=0)
+    
+    def mean_dist(self, u):
+        return np.sqrt(np.sum((self.mat-u)**2, axis=1))
+         
+    def col_aggr(self):
+        sorted_row = self.row
         clustered_col = []
         for i, row in enumerate(sorted_row):
-            for j, val in enumerate(V.mat[:, i]):
+            for j, val in enumerate(self.mat[:, i]):
                 if val!=0: 
-                    clustered_col.append(V.col[j])
+                    clustered_col.append(self.col[j])
         clustered_col = np.array(list(unique_everseen(clustered_col)))
+        return self.mat_col_key(clustered_col)
 
     def col_center(self):
         new_col = array_center(self.col)
@@ -132,20 +142,40 @@ class Vmatrix(object):
         ### cluster columns
         #print 'cluster col'
         clustered_col = []
-        for i, row in enumerate(sorted_row):
-            for j, val in enumerate(V.mat[:, i]):
-                if val!=0: 
-                    clustered_col.append(V.col[j])
-        clustered_col = np.array(list(unique_everseen(clustered_col)))
+        #sorted_row = []
+        #for i, row in enumerate(sorted_row):
+        for i in reorder_center(V.mat.shape[1]):
+            for j in reorder_center(V.mat.shape[0]):
+                if V.mat[j, i]!=0: 
+                    if V.col[j] not in clustered_col:
+                        if len(clustered_col)%2==0:
+                            clustered_col.append(V.col[j])
+                            #sorted_row.append(V.row[i])
+                        else:
+                            clustered_col.append(V.col[j])
+                            #sorted_row.append(V.row[i])
+                            #clustered_col.insert(0, V.col[j])
+                            #sorted_row.insert(0, V.row[i])
+        #clustered_col = np.array(list(unique_everseen(clustered_col)))
         #print clustered_col 
 
         new_col = clustered_col
         new_row = sorted_row
+
         #new_col = array_center(clustered_col)
-        #new_row = array_center(sorted_row)
         
-        return self.mat_col_key(new_col).T().mat_col_key(new_row).T()
+        #new_row = array_center(sorted_row)
+        X = S.mat_col_key(new_col).T().mat_col_key(new_row).T()
+        #X = X.T().col_sort().T()
+    
+        #X = X.T().col_center().T()
+        #X = X.col_center()
+        
+
+        
+        #return self.mat_col_key(new_col).T().mat_col_key(new_row).T()
         #return S.mat_col_key(new_col).T().mat_col_key(new_row).T()
+        return X
 
     def view(self):
         plt.matshow(self.mat)
@@ -183,10 +213,14 @@ def test_case():
     L = V.mat_sparsify(4).debug()
     print '================================================================'
 
-def test_rand():
+def test_order():
     alphabets = list(string.ascii_lowercase)
     print alphabets
     print array_center(alphabets)
+
+    print reorder_center(10)
+
+def test_rand():
     #V = Vmatrix(np.random.rand(10,10), col=alphabets[:10]).debug().view()
     V = Vmatrix(np.random.rand(100,100)).debug().view()
     G = V.col_cluster(0.8).debug().view()
@@ -228,9 +262,9 @@ def matrix_accu_attr(mat, speaker_list, attr):
 
     for i, a in enumerate(attr_list):
         print a,len(attr_speaker[i])
-    flatten = lambda l: [item for sublist in l for item in sublist]
-    return matrix, attr_list, flatten(attr_speaker)
+    return matrix, attr_list, attr_speaker
 
+flatten = lambda l: [item for sublist in l for item in sublist]
 
 def current_best():
     mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_5/result/result.mlf'
@@ -254,7 +288,8 @@ def current_best():
     #X = V.mat_sparsify(20)
     #V.col_cluster(20).debug().view()
 
-if __name__=='__main__':
+
+def region():
     mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/50_3/result/result.mlf'
     SV, spk_list, v_list = matrix_from_mlf(mlf_path)
     gSV, gen_list, gspk_list = matrix_accu_attr(SV, spk_list, 'gender')
@@ -263,18 +298,61 @@ if __name__=='__main__':
     #plt.show()
     
     V = Vmatrix(SV, spk_list, v_list)#.view()
-    V = V.mat_col_key(gspk_list)#.debug()
-    #V = Vmatrix(rSV, reg_list, v_list)#.view()
 
-    #X = V.mat_thresh(10)#.view()
-    sorted_rows = V.T().col_sort().T().row[20:200]
-    #sorted_cols = X.col_sort().col
+    selected_cols = []    
+    for key_clust in rspk_list:
+        u_clust = V.mean_col(key_clust)
+        d_clust = V.mat_col_key(key_clust).mean_dist(u_clust)
+        u_total = V.mean_col()
+        d_total = V.mat_col_key(key_clust).mean_dist(u_total)
+        #print sorted(d_total/d_clust)
+        selectd_cols_clust = V.mat_col_key(key_clust).col_sort(d_total/d_clust).col[:10]
+        print selectd_cols_clust
+        selected_cols.append(selectd_cols_clust)
+    V = V.mat_col_key(flatten(selected_cols))
 
-    #V = V.mat_col_key(sorted_cols).col_center()#.view()
-    V = V.T().mat_col_key(sorted_rows).col_center().T().view()
-    #V.mat_sparsify(3).view().debug()
-    #X = V.mat_sparsify(20)
-    #V.col_cluster(20).debug().view()
+    V = V.T().col_sort().T()
+    sorted_rows = V.row[11:]
+    V = V.T().mat_col_key(sorted_rows).col_center().T()
 
 
-    
+    #V.debug().view()
+
+    row = V.mat_sparsify(20).T().col_aggr().col_center().T().row
+    V = V.T().mat_col_key(row).T().view()
+
+
+if __name__=='__main__':
+    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/100_5/result/result.mlf'
+    SV, spk_list, v_list = matrix_from_mlf(mlf_path)
+    gSV, gen_list, gspk_list = matrix_accu_attr(SV, spk_list, 'gender')
+    rSV, reg_list, rspk_list = matrix_accu_attr(SV, spk_list, 'region')
+    #plt.matshow(np.log(SV+1))
+    #plt.show()
+    '''
+    V.debug().view()
+    ''' 
+    V = Vmatrix(SV, spk_list, v_list)#.view()
+
+    selected_cols = []    
+    for key_clust in gspk_list:
+        u_clust = V.mean_col(key_clust)
+        d_clust = V.mat_col_key(key_clust).mean_dist(u_clust)
+        u_total = V.mean_col()
+        d_total = V.mat_col_key(key_clust).mean_dist(u_total)
+        #print sorted(d_total/d_clust)
+        selectd_cols_clust = V.mat_col_key(key_clust).col_sort(d_total/d_clust).col[:100]
+        print selectd_cols_clust
+        selected_cols.append(selectd_cols_clust)
+    V = V.mat_col_key(flatten(selected_cols))
+
+    V = V.T().col_sort().T()
+
+    clip_rows = V.row[10:90]
+    V = V.T().mat_col_key(clip_rows).T()
+
+    sorted_row = V.mat_sparsify(1).T().col_aggr().T().row
+    V = V.T().mat_col_key(sorted_row).T()
+    V = V.T().col_center().T()
+
+    V.debug().view()

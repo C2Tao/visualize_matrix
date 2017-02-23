@@ -310,8 +310,15 @@ def get_speakers(mlf_path):
     return female_speakers, male_speakers
 
 def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
+    N = int(mlf_path.split('/')[-3].split('_')[0])
+    M = int(mlf_path.split('/')[-3].split('_')[1])
+    nn = 25
+    mm = 5
+
     SV, speaker_list, vocab_list = matrix_from_mlf(mlf_path)
     V = Vmatrix(SV, speaker_list, vocab_list)
+    #V = V.T().col_clip(mm).T()
+    #V = V.T().col_sort().T()
     
     A = V.mat_key(list(female_speakers) + list(male_speakers))
     F = V.mat_key(female_speakers)
@@ -319,13 +326,10 @@ def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
     phn_dist = (F.mean_col()-M.mean_col())
     A = A.T().col_sort(phn_dist).T()
     
-    N = int(mlf_path.split('/')[-3].split('_')[0])
-    M = int(mlf_path.split('/')[-3].split('_')[1])
 
-    #nn = N/2*0.8
-    nn = 25
-    contrast_row = list(A.row[:nn])+list(A.row[-nn:]) 
-    #contrast_row = A.row
+    #contrast_row = list(A.row[::2]) 
+    #contrast_row = list(A.row[:nn])+list(A.row[-nn:]) 
+    contrast_row = A.row
 
 
     X = A.T().mat_key(contrast_row).T()
@@ -355,7 +359,6 @@ if __name__=='__main__':
         N = n_list[i]
         #M = m_list[i] 
         im = ax.imshow(1.0 - np.exp(-mats[i].mat*N*M*0.0005), interpolation='nearest', aspect='auto', vmin=0, vmax=1, cmap='gray')
-        #im = ax.imshow(1.0 - np.exp(-mats[i].mat), interpolation='nearest', aspect='auto', vmin=0, vmax=1,cmap='gray')
         ax.set_xticks(np.linspace(0, len(mats[i].row), 11))
         ax.set_title('MR = 1\n n = {}\n m = {}'.format(N, M))
         plt.setp(ax.get_xticklabels(), rotation=90)

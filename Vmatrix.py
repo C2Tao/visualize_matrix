@@ -303,7 +303,8 @@ def flatten(nested_list):
 
 
 if __name__=='__main__':
-    mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
+    #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
+    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/500_5/result/result.mlf'
     
     SV, speaker_list, vocab_list = matrix_from_mlf(mlf_path)
     V = Vmatrix(SV, speaker_list, vocab_list)
@@ -311,14 +312,15 @@ if __name__=='__main__':
     spclass_list = sort_speaker_list(speaker_list)
     female_speakers = V.mat_class(spclass_list[:8], n_rep = 5).col
     male_speakers = V.mat_class(spclass_list[8:], n_rep = 5).col
-    V = V.mat_key(list(female_speakers) + list(male_speakers))
     
-    V = V.T().col_clip(0).T()
-
-    sorted_row = V.mat_sparsify().T().col_aggr().T().row
-    V = V.T().mat_key(sorted_row).T()
-    #V = V.T().col_center().T()
-
-    Vmatrix(V.mat**0.5, V.col, V.row).view()
+    A = V.mat_key(list(female_speakers) + list(male_speakers))
+    F = V.mat_key(female_speakers)
+    M = V.mat_key(male_speakers)
+    phn_dist = (F.mean_col()-M.mean_col())
+    A = A.T().col_sort(phn_dist).T()
+    n = 25
+    contrast_row = list(A.row[:n])+list(A.row[-n:]) 
+    X = A.T().mat_key(contrast_row).T()
+    Vmatrix(X.mat**0.5, X.col,X.row).view()
 
 

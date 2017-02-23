@@ -318,34 +318,47 @@ def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
     M = V.mat_key(male_speakers)
     phn_dist = (F.mean_col()-M.mean_col())
     A = A.T().col_sort(phn_dist).T()
+    
+    N = int(mlf_path.split('/')[-3].split('_')[0])
+    M = int(mlf_path.split('/')[-3].split('_')[1])
+
+    #nn = N/2*0.8
     nn = 25
     contrast_row = list(A.row[:nn])+list(A.row[-nn:]) 
     #contrast_row = A.row
-    print len(A.row)
+
+
     X = A.T().mat_key(contrast_row).T()
     return X
     #Vmatrix(X.mat**0.5, X.col,X.row).view()
 
 
 if __name__=='__main__':
-    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/{}_5/result/result.mlf'
+    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/{}_{}/result/result.mlf'
     #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
+    M = 5
+    N = 100
+    m_list = [3, 5, 7, 9]
     n_list = [50, 100, 300, 500] 
-    female, male = get_speakers(mlf_path.format(100))
+    female, male = get_speakers(mlf_path.format(N, M))
     mats = []
-    for N in n_list:
-        X = contrast_matrix(mlf_path.format(N), (female, male))
+    for i in range(4):
+        N = n_list[i]
+        #M = m_list[i] 
+        X = contrast_matrix(mlf_path.format(N, M), (female, male))
         mats.append(X)
     #X_mats = np.concatenate(mats, axis = 1)
     
 
     fig, axes = plt.subplots(1, 4, sharey=True)
     for i, ax in enumerate(axes):
-        im = ax.imshow(1.0 - np.exp(-mats[i].mat*n_list[i]*0.001), interpolation='nearest', aspect='auto', vmin=0, vmax=1,cmap='gray')
+        N = n_list[i]
+        #M = m_list[i] 
+        im = ax.imshow(1.0 - np.exp(-mats[i].mat*N*M*0.0005), interpolation='nearest', aspect='auto', vmin=0, vmax=1, cmap='gray')
         #im = ax.imshow(1.0 - np.exp(-mats[i].mat), interpolation='nearest', aspect='auto', vmin=0, vmax=1,cmap='gray')
         ax.set_xticks(np.linspace(0, len(mats[i].row), 11))
+        ax.set_title('MR = 1\n n = {}\n m = {}'.format(N, M))
         plt.setp(ax.get_xticklabels(), rotation=90)
-        #for t in ax.get_xticklabels(): t.set_rotation(90)
     cax = fig.add_axes([0.95, 0.1, 0.01, 0.8])
     im = fig.colorbar(im, cax=cax)
     print axes[0].get_xticks()
@@ -361,4 +374,3 @@ if __name__=='__main__':
     #plt.tight_layout()
     print fmdr_list
     plt.show()
-    

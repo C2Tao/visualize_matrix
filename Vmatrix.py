@@ -197,20 +197,19 @@ class Vmatrix(object):
     def mat_class(self, class_list, n_rep=None):
         # class list contains keys for each class
         # this function finds the representatives from each class that standout the most
-
         if n_rep is None:
             n_rep = min([len(x) for x in class_list]) 
             print 'setting the number of representatives to', n_rep
 
         selected_cols = []    
-        u_total = V.mean_col(flatten(class_list))
+        u_total = self.mean_col(flatten(class_list))
         for key_clust in class_list:
-            u_clust = V.mean_col(key_clust)
-            d_clust = V.mat_key(key_clust).mean_dist(u_clust)
-            d_total = V.mat_key(key_clust).mean_dist(u_total)
-            selectd_cols_clust = V.mat_key(key_clust).col_sort(d_total/d_clust).col[:n_rep]
+            u_clust = self.mean_col(key_clust)
+            d_clust = self.mat_key(key_clust).mean_dist(u_clust)
+            d_total = self.mat_key(key_clust).mean_dist(u_total)
+            selectd_cols_clust = self.mat_key(key_clust).col_sort(d_total/d_clust).col[:n_rep]
             selected_cols.append(selectd_cols_clust)
-        return V.mat_key(flatten(selected_cols))
+        return self.mat_key(flatten(selected_cols))
 
 
     def view(self):
@@ -302,25 +301,64 @@ def flatten(nested_list):
     return [item for sublist in nested_list for item in sublist]
 
 
-if __name__=='__main__':
-    #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
-    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/500_5/result/result.mlf'
-    
+def get_speakers(mlf_path):
     SV, speaker_list, vocab_list = matrix_from_mlf(mlf_path)
     V = Vmatrix(SV, speaker_list, vocab_list)
-    
     spclass_list = sort_speaker_list(speaker_list)
     female_speakers = V.mat_class(spclass_list[:8], n_rep = 5).col
     male_speakers = V.mat_class(spclass_list[8:], n_rep = 5).col
+    return female_speakers, male_speakers
+
+def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
+    SV, speaker_list, vocab_list = matrix_from_mlf(mlf_path)
+    V = Vmatrix(SV, speaker_list, vocab_list)
     
     A = V.mat_key(list(female_speakers) + list(male_speakers))
     F = V.mat_key(female_speakers)
     M = V.mat_key(male_speakers)
     phn_dist = (F.mean_col()-M.mean_col())
     A = A.T().col_sort(phn_dist).T()
-    n = 25
-    contrast_row = list(A.row[:n])+list(A.row[-n:]) 
+    nn = 25
+    contrast_row = list(A.row[:nn])+list(A.row[-nn:]) 
+    #contrast_row = A.row
+    print len(A.row)
     X = A.T().mat_key(contrast_row).T()
-    Vmatrix(X.mat**0.5, X.col,X.row).view()
+    return X
+    #Vmatrix(X.mat**0.5, X.col,X.row).view()
 
 
+if __name__=='__main__':
+    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/{}_5/result/result.mlf'
+    #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
+    n_list = [50, 100, 300, 500] 
+    female, male = get_speakers(mlf_path.format(100))
+    mats = []
+    for N in n_list:
+        X = contrast_matrix(mlf_path.format(N), (female, male))
+        mats.append(X)
+    #X_mats = np.concatenate(mats, axis = 1)
+    
+
+    fig, axes = plt.subplots(1, 4, sharey=True)
+    for i, ax in enumerate(axes):
+        im = ax.imshow(1.0 - np.exp(-mats[i].mat*n_list[i]*0.001), interpolation='nearest', aspect='auto', vmin=0, vmax=1,cmap='gray')
+        #im = ax.imshow(1.0 - np.exp(-mats[i].mat), interpolation='nearest', aspect='auto', vmin=0, vmax=1,cmap='gray')
+        ax.set_xticks(np.linspace(0, len(mats[i].row), 11))
+        plt.setp(ax.get_xticklabels(), rotation=90)
+        #for t in ax.get_xticklabels(): t.set_rotation(90)
+    cax = fig.add_axes([0.95, 0.1, 0.01, 0.8])
+    im = fig.colorbar(im, cax=cax)
+    print axes[0].get_xticks()
+    print axes[0].get_yticks()
+    
+    dr_list = ['New England', 'Northern', 'North Midland', 'South Midland', 'Southern', 'New York City', 'Western', 'Army Brat']
+    fm_list = ['Female', 'Male']
+    fmdr_list = [fm+' '+dr for fm in fm_list for dr in dr_list]
+    
+    axes[0].set_yticks(np.arange(0+2.5, 80+2.5, 5))
+    axes[0].set_yticklabels(fmdr_list, horizontalalignment='right')
+    
+    #plt.tight_layout()
+    print fmdr_list
+    plt.show()
+    

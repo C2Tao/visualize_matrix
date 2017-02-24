@@ -333,6 +333,13 @@ def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
 
 
     X = A.T().mat_key(contrast_row).T()
+    
+
+    ###############AGGREGATE ROWS##################
+    ag_rows = X.T().mat_sparsify().col_aggr().T().row
+    X = X.T().mat_key(ag_rows).T()
+    ###############################################
+
     return X
     #Vmatrix(X.mat**0.5, X.col,X.row).view()
 

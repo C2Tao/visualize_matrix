@@ -344,7 +344,7 @@ def contrast_matrix(mlf_path, (female_speakers, male_speakers)):
     #Vmatrix(X.mat**0.5, X.col,X.row).view()
 
 
-if __name__=='__main__':
+def plot_before_lee():
     mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/{}_{}/result/result.mlf'
     #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
     M = 5
@@ -380,6 +380,144 @@ if __name__=='__main__':
     
     axes[0].set_yticks(np.arange(0+2.5, 80+2.5, 5))
     axes[0].set_yticklabels(fmdr_list, horizontalalignment='right')
+    
+    #plt.tight_layout()
+    print fmdr_list
+    plt.show()
+
+if __name__=='__main__':
+    mlf_path = '/home/c2tao/timit_train_matdnn_nosa/tokenizer_bnf0_mr1/{}_{}/result/result.mlf'
+    #mlf_path = '/mnt/c/Users/c2tao/Desktop/Semester 18/tokenizer_bnf0_mr1/500_9/result/result.mlf'
+    M = 5
+    N = 100
+    m_list = [3, 5, 7, 9]
+    n_list = [50, 100, 300, 500] 
+    female, male = get_speakers(mlf_path.format(N, M))
+    mats = []
+    for i in range(4):
+        N = n_list[i]
+        #M = m_list[i] 
+        X = contrast_matrix(mlf_path.format(N, M), (female, male))
+        mats.append(X)
+    #X_mats = np.concatenate(mats, axis = 1)
+    
+
+    fig, axes = plt.subplots(1, 4, sharey=True)
+    for i, ax in enumerate(axes):
+        N = n_list[i]
+        #M = m_list[i] 
+        im = ax.imshow(1.0 - np.exp(-mats[i].mat*N*M*0.0005), interpolation='nearest', aspect='auto', vmin=0, vmax=1, cmap='gray')
+        ax.set_xticks(np.linspace(0, len(mats[i].row), 11))
+        ax.set_title('MR = 1\n n = {}\n m = {}'.format(N, M))
+        plt.setp(ax.get_xticklabels(), rotation=90)
+    cax = fig.add_axes([0.95, 0.1, 0.01, 0.8])
+    im = fig.colorbar(im, cax=cax)
+    print axes[0].get_xticks()
+    print axes[0].get_yticks()
+    def max_len(str_list):
+        return max(map(len, str_list))
+    def left_pad(str_list):
+        ml = max(map(len, str_list))
+        #print str_list, ml
+        return map(lambda x: '{{0:>{}}}'.format(ml).format(x), str_list)
+
+
+    sp_list = left_pad(map(lambda x: str(x), np.arange(1, 81)))
+    dr_list = left_pad(['New England', 'Northern', 'North Midland', 'South Midland', 'Southern', 'New York City', 'Western', 'Army Brat'])
+    fm_list = left_pad(['Female', 'Male'])
+
+    fmdrsp = ['' for ___ in range(80)]
+
+    for i in range(80):
+        if i%40==20:
+            fmdrsp[i]+=fm_list[((i-20)/40%2)]
+        else:   
+            fmdrsp[i]+=' '*max_len(fm_list)
+        fmdrsp[i]+=' '
+        if i%5==2:
+            fmdrsp[i]+=dr_list[((i-2)/5)%8]
+        else:
+            fmdrsp[i]+=' '*max_len(dr_list)
+        fmdrsp[i]+=' '
+        if i%2:
+            fmdrsp[i]+=sp_list[i]
+        else:   
+            fmdrsp[i]+=' '*max_len(sp_list)
+
+    from matplotlib import lines
+
+    sc = 1.35
+    g1 = 26*sc
+    g2 = 19*sc
+    g3 = 4*sc
+    g4 = .5
+    
+    h1 = 5
+
+    for i in range(81):
+        if i%5!=0: continue
+        if i%40==0:
+            ll = g1
+        else:
+            ll = g2
+        line = lines.Line2D([-ll,-g3], [i-.5,i-.5], lw=1, color='k', alpha=1.0)
+        line.set_clip_on(False)
+        axes[0].add_line(line)
+    
+    line = lines.Line2D([-g1,-g1], [-h1-.5,80-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+
+    line = lines.Line2D([-g2,-g2], [-h1-.5,80-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+    
+    line = lines.Line2D([-g3,-g3], [-h1-.5,80-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+    
+    line = lines.Line2D([-g4,-g4], [-h1-.5,80-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+    
+    line = lines.Line2D([-g1,-g4], [-h1-.5,-h1-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+
+    line = lines.Line2D([-g1,-g4], [0-.5,0-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+    
+    line = lines.Line2D([-g1,-g4], [80-.5,80-.5], lw=1, color='k', alpha=1.0)
+    line.set_clip_on(False)
+    axes[0].add_line(line)
+
+
+
+            
+    fmdr_list = [fm+' '+dr for fm in fm_list for dr in dr_list]
+    
+    axes[0].set_yticks(np.arange(0+.5, 80+.5, 1))
+    print axes[0].get_yticks()
+    axes[0].set_yticklabels(fmdrsp, horizontalalignment='right',fontname = "monospace", fontsize=10, va='bottom')
+    '''
+    from matplotlib import rc, font_manager
+    sizeOfFont = 8
+    fontProperties = {'family':'sans-serif','sans-serif':['monospace'], 'weight' : 'normal', 'size' : sizeOfFont}
+    ticks_font = font_manager.FontProperties(family='Helvetica', style='normal', size=sizeOfFont, weight='normal', stretch='normal')
+    for label in axes[0].get_yticklabels():
+        label.set_fontproperties(ticks_font)
+    '''
+    #axes[0].set_yticks(np.arange(0+2.5, 80+2.5, 5))
+    #axes[0].set_yticklabels(fmdr_list, horizontalalignment='right')
+    ''' 
+    dr_list = ['New England', 'Northern', 'North Midland', 'South Midland', 'Southern', 'New York City', 'Western', 'Army Brat']
+    fm_list = ['Female', 'Male']
+    fmdr_list = [fm+' '+dr for fm in fm_list for dr in dr_list]
+    
+    axes[0].set_yticks(np.arange(0+2.5, 80+2.5, 5))
+    axes[0].set_yticklabels(fmdr_list, horizontalalignment='right')
+    '''
     
     #plt.tight_layout()
     print fmdr_list
